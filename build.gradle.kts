@@ -23,11 +23,6 @@ kotlin {
     }
 
     linuxX64("native").apply {
-        binaries {
-            executable {
-                entryPoint = "main"
-            }
-        }
     }
     sourceSets {
         val nativeMain by getting {

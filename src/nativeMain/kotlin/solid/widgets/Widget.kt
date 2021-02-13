@@ -6,6 +6,8 @@ import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.staticCFunction
 import solid.WidgetWrapException
 import solid.events.Signal
+import kotlin.properties.ReadOnlyProperty
+import kotlin.reflect.KProperty
 
 @SolidDsl
 public abstract class Widget {
@@ -18,11 +20,22 @@ public abstract class Widget {
     /**Registers a new signal for the given event [id]. When incoming events are handled, the signal assigned to the
      * corresponding event id is emitted.
      *
+     * Signal registration is *lazy*: the signal will be registered when it is
+     * first accessed to avoid unnecessary event processing.
+     *
      * Please note that events and event ids are defined at the low level Solid C++ backend. To create your own custom
      * events you will need to modify those sources and then register the appropriate signal.*/
-    protected fun <W : Widget> W.registerSignal(id: Int): Signal<W> {
-        return Signal(this).also { signals[id] = it }
-    }
+    protected fun <W : Widget> W.registerSignal(id: Int): ReadOnlyProperty<W, Signal<W>> =
+        object : ReadOnlyProperty<W, Signal<W>> {
+            private lateinit var value: Signal<W>
+
+            override operator fun getValue(thisRef: W, property: KProperty<*>): Signal<W> {
+                return if (::value.isInitialized) value else Signal(thisRef).also {
+                    signals[id] = it
+                    value = it
+                }
+            }
+        }
 
     public companion object {
         internal val WidgetEventHandler = staticCFunction { event: Int, widget: COpaquePointer? ->

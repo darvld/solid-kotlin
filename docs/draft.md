@@ -201,15 +201,15 @@ host.navigateTo(helpScreen, arguments)
 Or you can make your custom fragment’s Companion object implement the interface:
 
 ```kotlin
-class HelpScreen(host: NavigationHost, topic: String) : Fragment(host) {
-    override fun createUI(container: Container): Widget {
+class HelpScreen(topic: String) : Fragment() {
+    override fun Container.createUI(): Widget {
         /*Your UI code*/
     }
     
     companion object : Destination {
         // Create a new instance only if there isn't one in the navigation stack
     	override fun navigate(host: NavigationHost, args: Bundle?): Fragment {
-            return host.findOrCreate { HelpScreen(host, args!!.get("topic")) }
+            return host.findOrCreate { HelpScreen(args!!.get("topic")) }
         }
     }
 }
