@@ -1,30 +1,48 @@
-import solid.Widget
+import solid.navigation.Bundle
+import solid.navigation.Destination
+import solid.navigation.Fragment
+import solid.navigation.NavigationHost
+import solid.widgets.Container
+import solid.widgets.Widget
 
-private inline fun <reified T> stub(): T = TODO()
+private inline fun <reified T> stub(vararg args: Any?): T = TODO(args.toString())
 private const val SIGNAL_EDIT = 4
+
+private inline fun Container.sample(setup: SampleWidget.()->Unit): SampleWidget = stub()
 
 private class SampleWidget : Widget() {
     val onEdit = registerSignal(SIGNAL_EDIT)
 }
 
-public fun main() {
-    println("Started")
-
-    val sample = SampleWidget()
-
-    val handler = sample.onEdit {
-        println("Edited: $it")
+private class SettingsFragment : Fragment() {
+    override fun onAttached() {
+        TODO()
     }
 
-    sample.handleEvent(SIGNAL_EDIT)
-    handler.disconnect()
-    println("Don't handle")
+    override fun Container.createView(): Widget = sample {
 
-    sample.handleEvent(SIGNAL_EDIT)
-    handler.reconnect()
-    println("Didn't handle")
+    }
 
-    sample.handleEvent(SIGNAL_EDIT)
+    override fun onDisplay() {
+        TODO()
+    }
+
+    override fun onDestroy() {
+        TODO()
+    }
+
+    companion object : Destination {
+        override fun navigate(host: NavigationHost, arguments: Bundle?): Fragment {
+            return host.findOrCreate(::SettingsFragment)
+        }
+    }
+}
+
+public fun main() {
+    println("Started")
+    /*val root: Container = stub()
+
+    val home: Destination = SettingsFragment*/
 
     println("Finished")
 }

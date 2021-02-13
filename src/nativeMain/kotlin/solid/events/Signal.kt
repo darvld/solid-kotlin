@@ -1,6 +1,6 @@
 @file:Suppress("MemberVisibilityCanBePrivate")
 
-package solid
+package solid.events
 
 /**Represents an event to be invoked at some later point (or not at all).
  *

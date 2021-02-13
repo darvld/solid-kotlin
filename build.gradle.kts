@@ -1,13 +1,13 @@
 plugins {
-    kotlin("multiplatform") version "1.4.20"
+    kotlin("multiplatform") version "1.4.30"
 }
 
 group = "com.github.darvld"
 version = "1.0.0"
 
 repositories {
-    mavenLocal()
     mavenCentral()
+    mavenLocal()
 }
 
 kotlin {
@@ -22,7 +22,7 @@ kotlin {
         else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
     }
 
-    nativeTarget.apply {
+    linuxX64("native").apply {
         binaries {
             executable {
                 entryPoint = "main"
@@ -30,7 +30,9 @@ kotlin {
         }
     }
     sourceSets {
-        val nativeMain by getting
+        val nativeMain by getting {
+            languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
+        }
         val nativeTest by getting
     }
 }

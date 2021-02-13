@@ -1,4 +1,4 @@
-package solid
+package solid.events
 
 /**Connects a *disposable* handler to this signal. The handler will automatically disconnect itself after the specified
  *  number of invocations. You can use [SignalHandler.reconnect] to reset the use count after it has been disconnected.*/

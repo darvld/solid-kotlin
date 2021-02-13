@@ -1,9 +1,13 @@
-@file:Suppress("MemberVisibilityCanBePrivate")
+@file:Suppress("MemberVisibilityCanBePrivate", "unused")
 
-package solid
+package solid.widgets
 
 import kotlinx.cinterop.COpaquePointer
+import kotlinx.cinterop.staticCFunction
+import solid.WidgetWrapException
+import solid.events.Signal
 
+@SolidDsl
 public abstract class Widget {
     private val signals: MutableMap<Int, Signal<out Widget>> = mutableMapOf()
 
@@ -21,6 +25,10 @@ public abstract class Widget {
     }
 
     public companion object {
+        internal val WidgetEventHandler = staticCFunction { event: Int, widget: COpaquePointer? ->
+            tryWrap(widget)?.handleEvent(event) != null
+        }
+
         /**Creates a [Widget] wrapper from a given C pointer.
          * - If the bindingPointer field is `null`, a [StableRef][kotlinx.cinterop.StableRef] is stored in it and the
          * event handler is setup. The widget is then officially owned by this runtime.

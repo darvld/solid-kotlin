@@ -1,5 +1,6 @@
-package solid
+package solid.events
 
+import solid.weakReference
 import kotlin.native.ref.WeakReference
 
 /**A handler that responds to [Signal] emissions.

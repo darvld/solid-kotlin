@@ -1,4 +1,4 @@
-# <img src="G:\Kotlin\projects\solid-kotlin\docs\resources\solid_logo.png" alt="solid_logo" style="zoom:40%;" />  Solid-Kotlin
+# <img src="resources\solid_logo.png" alt="solid_logo" style="zoom:40%;" />  Solid-Kotlin
 
 A **Kotlin/Native** library binding for the **Solid** UI backend
 
@@ -17,7 +17,7 @@ If you need to share the same UI hierarchy and design between multiple languages
 The widget design API for Solid-Kotlin is meant to blend in seamlessly with Kotlin-style code: the ui components are declared and configured using a custom DSL, so they look pretty much like Qt’s QML.
 
 ```kotlin
-/** Create a basic window with a couple of controls*/
+/** Create a basic window with a couple of controls */
 fun showSomething(): Widget = window("Hello World!") { // this: Window
 	val foo = label("This is a Solid-Kotlin example")
     
@@ -39,12 +39,14 @@ fun showSomething(): Widget = window("Hello World!") { // this: Window
 As seen in the previous example, the code defining a UI hierarchy looks straightforward and readable enough. We can also name  Widgets so we can retrieve them later by searching the hierarchy:
 
 ```kotlin
-fun createUI(container: Container) = container.apply { // this: Container
+fun createUI(container: Container) = container { // this: Container
     button("Ok", name="ok_button"){
-        TODO()
+        onClick { doAccept() }
     }
-    val user = textField("Username:", name="username_field") {
-        type = InputType.EMAIL
+    val user = textField("Username:", type=InputType.EMAIL, name="username_field") {
+        onEdit { // it: textField
+            verifyEmail(it.text)
+        }
     }
 }
 
@@ -55,7 +57,7 @@ fun useUI(window: Window) {
 }
 ```
 
-A widget’s name is always the last parameter for a constructor (except for lambdas). This is done by design to avoid confusing label-related parameters with the widget’s name parameter.
+A widget’s name is always the last parameter for a constructor (except for lambdas). This is done by design to avoid confusing other String parameters with the widget’s name parameter.
 
 ###### Handling events
 
@@ -71,13 +73,13 @@ fun createUI(container: Container) = container.apply {
     
     // You can store the connected handler, so you can manually disconnect
     // it later, and even re-connect it
-    val handler: SignalHandler = textField("Say something").onClick {
+    val handler: SignalHandler = textField("Say something").onEdit {
         // Implicit parameter "it" of type TextField
         println("You said: $it.text")
     }
     
-    // You can create disposable handlers: they will automatically disconnect
-    // after a certain amount of calls (defaults to 1):
+    // You can create disposable handlers: they will automatically 
+    // disconnect after a certain amount of calls (defaults to 1):
     button("Disconnect").onClick.connectDisposable(disconnectAfter=3) {
         if(handler.connected)
 	    	handler.disconnect()
@@ -93,36 +95,42 @@ Events and handlers take a generic `T` parameter which specifies the context in 
 
 It is possible to disconnect all handlers for a specific `Event` by calling `Event.clearHandlers()`.  You can also store a reference to an `Event` to connect it at a later time, without having to keep track of the widget, though you should use the `weakReference()` extension for this, to allow the owning widget to be freed by the Garbage Collector and avoid connecting useless event handlers.
 
-Keep in mind that in runtime, Kotlin prohibits type checks and casts on generic types like `Signal<T>` and `SignalHandler<T>`, so if your code needs to dynamically handle different signal and handler types, there are a few restrictions. The best way to get around the issue is to use type projections like this: 
+Keep in mind that in runtime, Kotlin prohibits type checks and casts on generic types like `Signal<T>` and `SignalHandler<T>`, so if your code needs to dynamically handle different signal and handler types, there are a few restrictions. Instead of this:
 
  ```kotlin
 // incorrect: invariant type parameter
-val badSignals: MutableList<Signal<Widget>> = mutableListOf()
+val signals: MutableList<Signal<Widget>> = mutableListOf()
+val button = button("Click me!")
 
+// Error: Signal<Widget> expected but inferred type is Signal<Button>
+signals.add(button.onClick)
+ ```
+
+Use this:
+
+```kotlin
 // correct: projected type parameter
 val signals: MutableList<Signal<out Widget>> = mutableListOf()
-
 val button = button("Click me!")
- 
-// Error: Signal<Widget> expected but inferred type is Signal<Button>
-badSignals.add(button.onClick)
 
 // This is ok
 signals.add(button.onClick)
- ```
+```
+
+
 
 ### Sharing widgets with other language bindings
 
 Since **Solid** is a multiplatform, poliglot library, interaction between bindings created by different languages are part of its API. However, special care must be taken when working in a multi-language environment, or an environment with multiple runtimes not allowing instance sharing, like **Kotlin/Native**'s runtime.
 
 In their original C++ class definitions, Solid's widgets reserve a void pointer field for language-specific wrappers, Kotlin bindings use that field to store a `StableRef`.
-This creates a problem, though: if a Kotlin widget wrapper is created around a pointer to a widget that was previously wrapped by another language (or a different Kotlin runtime), the wrapping/unwrapping of the `StableRef `will fail. To solve this, Kotlin wrappers can be constructed in three different ways:
+This creates a problem, though: if a Kotlin widget wrapper is created around a pointer to a widget that was previously wrapped by another language (or a different Kotlin runtime), the wrapping/unwrapping of the `StableRef ` will fail. To solve this, Kotlin wrappers can be constructed in three different ways:
 
 1. By manually using a constructor call that creates a *new* widget. Widgets created this way are wrapped automatically, and so their pointer fields are used by the Kotlin runtime that created them (the owner).
 
-2. By using `Widget.wrap(COpaquePointer)` companion function or one of its variants, they take a widget pointer and attempt to wrap around it:
+2. By using  the method `Widget.wrap(COpaquePointer)` available in Widget’s companion object. It takes a widget pointer and attempts to wrap around it:
     - If the bindingPointer field is `null`, a `StableRef` is stored in it and the event handler is setup. The widget is then officially owned by this runtime.
-    - If the bindingPointer or the eventHandler fields are not `null`, the function fails with an exception of type `WidgetWrappingException`. These exceptions store the original widget’s pointer, so you can try a different approach if you catch it.
+    - If the bindingPointer is not `null`, it is unwrapped as a `StableRef<Widget>`. If the pointer cannot be unwrapped the function fails with an exception of type `WidgetWrappingException`. These exceptions store the original widget’s pointer, so you can still use the pointer if you catch them.
 
     As an alternative, `Widget.tryWrap(COpaquePointer)` could be used to avoid the exception, however the returned value will be of type `Widget?` (nullable). This is the method used by most functions and value getters in the library, to avoid returning wrappers to widgets not owned by the runtime.
     
@@ -131,7 +139,7 @@ This creates a problem, though: if a Kotlin widget wrapper is created around a p
 6. By calling a constructor which takes only a pointer as argument. This way, no wrappers will be stored and you can use the widget, but you won't receive any events. This allows to respect other language bindings while still using the widget's methods and properties.
 
 ```kotlin
-fun createWidget(pointer: COpaquePointer?, example: WrapperExample): Widget {
+fun createWidget(pointer: COpaquePointer?, example: ExampleCase): Widget {
     return when(example) {
         Create -> {
             // Always wraps the widget, it is owned by this runtime
@@ -139,20 +147,20 @@ fun createWidget(pointer: COpaquePointer?, example: WrapperExample): Widget {
         }
         Wrap -> {
             // Returns the Widget or fails with a WidgetBindingException if
-            // a wrapper from a different runtime/language already owns the widget
+            // a wrapper from a different runtime already owns the widget
             Widget.wrap(pointer)
         }
         TryWrap -> {
-            // Returns null if the wrapping fails, so a null cast is required
-            // to return Widget here
+            // Returns null if the wrapping fails
             Widget.tryWrap(pointer)!!
         }
         MaybeWrap -> {
-            // Always returns a Widget, but if wrapping failed we won't be able 
-            // to receive events, use this only for internal/final parts of your
-            // code, or otherwise warn the code's user of the limitations
+            // Always returns a Widget, but if wrapping fails we won't be 
+            // able to receive events, use this only for internal/final 
+            // parts of your code
             Widget.maybeWrap(pointer).also { it: Widget->
-                // Use this to check whether the widget was successfully wrapped
+                // Use this to check whether the widget was successfully
+                // wrapped
                 if(it.isWrapper)
                 	TODO()
                 else
@@ -160,9 +168,8 @@ fun createWidget(pointer: COpaquePointer?, example: WrapperExample): Widget {
             }
         }
         NoWrap -> {
-            // Note that this widget wrapper will not receive any events. Some
-            // other limitations may apply in the future since the Kotlin runtime
-            // does not own the widget
+            // Note that this widget wrapper will not receive any events. 
+            // Some other limitations may apply in the future
             MyWidget(pointer)
         }
     }
@@ -172,3 +179,149 @@ fun createWidget(pointer: COpaquePointer?, example: WrapperExample): Widget {
 > Do not try to take over widgets you don't own, this can cause the original owner's code to misbehave. As a general rule, if you need to transfer ownership, be polite and establish an API to exchange/share widgets instead.
 
 ## Navigation and the Fragment system
+
+###### Destinations
+
+The key concept in the whole navigation system is the `Destination` component. It is a functional interface that provides a `Fragment` to display to the user. You can create destinations using the SAM converter:
+
+```kotlin
+// Create the destination
+val helpScreen = Destination { host: NavigationHost, args: Bundle? ->
+    // Instantiate a fragment and return it
+    return HelpScreen(host, args!!.get("topic"))
+}
+
+// Setup the arguments
+val arguments = Bundle { set("topic", "navigation") }
+
+// Navigate
+host.navigateTo(helpScreen, arguments)
+```
+
+Or you can make your custom fragment’s Companion object implement the interface:
+
+```kotlin
+class HelpScreen(host: NavigationHost, topic: String) : Fragment(host) {
+    override fun createUI(container: Container): Widget {
+        /*Your UI code*/
+    }
+    
+    companion object : Destination {
+        // Create a new instance only if there isn't one in the navigation stack
+    	override fun navigate(host: NavigationHost, args: Bundle?): Fragment {
+            return host.findOrCreate { HelpScreen(host, args!!.get("topic")) }
+        }
+    }
+}
+```
+
+So you can instead use the class name as destination:
+
+```kotlin
+// The companion object implements `Destination`, so we can use it like this
+host.navigateTo(HelpScreen)
+```
+
+Either way, you can customize what happens when the user tries to reach a certain screen in your app. Generally, you should implement all major destinations as custom Fragment subclasses with companion objects implementing `Destination`, and use the SAM constructor for dynamically-generated destinations.
+
+###### Navigation Hosts
+
+To allow the user to navigate through different screens without spawning new windows or creating tab layouts, we can use a `NavigationHost` component: a container widget that manages a collection of `Fragment` instances, usually referred to as “the stack” or the “navigation graph”.
+
+When creating a navigation host, you need to provide a “home” destination, which will be the entry point for user navigation.
+
+```kotlin
+class MainWindow : Window("Hello World", 1280 by 720) {
+    // Let the host handle the UX implementation.
+	val host = navigationHost(HomeFragment)
+    
+    // other top-level app logic
+    /* .... */
+}
+```
+
+You can then use `navigateTo(Destination)` or `navigateUp()` to make your way around the graph, both methods are also available inside a fragment subclass without having to reference the host.
+
+###### Fragments
+
+A `Fragment` is a component that can be used in a modular way to allow the user to navigate through the application. The concept is similar to Android’s own Fragments. After they are no longer needed, fragments are destroyed, freeing any memory allocated using its local arena scope and destroying the root widget. Typically, a fragment implementation looks like this:
+
+```kotlin
+class SettingsFragment : Fragment() {
+    
+    private val username: Setting<String> by App.settings
+    
+    // Fragment implements AutoFreeScope, memory is freed once the fragment
+    // is destroyed.
+    private val dataStruct: CustomDataStruct = alloc { /*Init struct*/ }
+    
+    // Called the first time this fragment is attached to a graph
+    override fun onAttached(){
+        App.userNotices("terms_and_conditions").promptIfNeeded()
+        CApi.callFunction(dataStruct)
+    }
+    
+    // Called the first time this fragment is shown
+    // The returned widget becomes the value for the "root" property
+    override fun Container.createUI() = column {
+        title("Settings")
+        
+        // Read/Write automatically from/to the username setting
+        textField("username").bindTo(username)
+        
+        primaryButton("Ok").onClick { 
+			saveSettings()
+            // Instructs the navigation host to go back in the stack
+            navigateUp()
+        }
+        
+        button("Advanced").onClick {
+            // Sets a new destination for the navigation host
+            navigateTo(AdvancedSettings)
+        }
+    }
+    
+    // Called every time the user navigates to this fragment
+    override fun onDisplay() {
+        // Load the username from a database asynchronously
+        Backend.load(username)
+    }
+    
+    // Called when the user navigates out from the fragment
+    override fun onLeave() {
+        log("user left settings")
+    }
+    
+    // Called once the fragment is no longer present in the
+    // navigation stack.
+    override fun onDestroy() {
+        saveSettings()
+		/* cleanup */
+    }
+    
+    private fun saveSettings() {
+		// Save the username to the database
+        Backend.save(username)
+    }
+    
+    // Expose the companion object as a destination
+    public companion object : Destination {
+        // Navigate to existing SettingsFragment or create one if none
+        // is found.
+        override fun navigate(
+            host: NavigationHost,
+            params: Bundle?
+        ): Fragment {
+            return host.findOrCreate { SettingsFragment() }
+        }
+    }
+}
+```
+
+The life-cycle of a `Fragment` is managed by its host: first, the `NavigationHost` is asked to navigate to a new `Destination`, which produces a `Fragment` instance (or retrieves an existing one from the stack). You can use the life-cycle functions to respond to events throughout the life of the fragment.
+
+- `onAttached`**:** The fragment has been added to a navigation stack. This method is called *only once* when the fragment is “attached” to the stack, but *before* the fragment’s `createUI` implementation. You may not access the `root` property within this method, since it has not been initialized yet.
+- `createUI`**:** The navigation host asks the fragment to provide a UI rooted to its container. The `Widget` returned by this method becomes the value of the `root` property, accessible at any time from within the fragment. 
+- `onDisplay`**:** The fragment is currently visible, the UI hierarchy has been setup and everything is ready for user interaction. Use this for last-moment UX checks and updates.
+- `onLeave`**:** The user has navigated to a different fragment, this is also called before `onDestroy`. You can use this method to stop any functionality that is purely visual or meaningless to execute without the user’s attention.
+- `onDestroy`**:** This fragment has been completely removed from the navigation stack and it will be destroyed to free memory and other resources. At this point, all memory allocated using the `AutoFreeScope` provided by the fragment is cleared.
