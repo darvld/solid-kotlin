@@ -1,9 +1,10 @@
 plugins {
     kotlin("multiplatform") version "1.4.30"
+    id("maven-publish")
 }
 
 group = "com.github.darvld"
-version = "1.0.0"
+version = "0.0.1"
 
 repositories {
     mavenCentral()
@@ -22,8 +23,12 @@ kotlin {
         else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
     }
 
-    linuxX64("native").apply {
+    nativeTarget.apply {
+        mavenPublication {
+            artifactId = "solid-core"
+        }
     }
+
     sourceSets {
         val nativeMain by getting {
             languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")

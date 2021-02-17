@@ -129,8 +129,8 @@ This creates a problem, though: if a Kotlin widget wrapper is created around a p
 1. By manually using a constructor call that creates a *new* widget. Widgets created this way are wrapped automatically, and so their pointer fields are used by the Kotlin runtime that created them (the owner).
 
 2. By using  the method `Widget.wrap(COpaquePointer)` available in Widget’s companion object. It takes a widget pointer and attempts to wrap around it:
-    - If the bindingPointer field is `null`, a `StableRef` is stored in it and the event handler is setup. The widget is then officially owned by this runtime.
-    - If the bindingPointer is not `null`, it is unwrapped as a `StableRef<Widget>`. If the pointer cannot be unwrapped the function fails with an exception of type `WidgetWrappingException`. These exceptions store the original widget’s pointer, so you can still use the pointer if you catch them.
+    - If the `bindingPointer` field is `null`, a `StableRef` is stored in it and the event handler is setup. The widget is then officially owned by this runtime.
+    - If the `bindingPointer` is not `null`, it is unwrapped as a `StableRef<Widget>`. If the pointer cannot be unwrapped the function fails with an exception of type `WidgetWrappingException`. These exceptions store the original widget’s pointer, so you can still use the pointer if you catch them.
 
     As an alternative, `Widget.tryWrap(COpaquePointer)` could be used to avoid the exception, however the returned value will be of type `Widget?` (nullable). This is the method used by most functions and value getters in the library, to avoid returning wrappers to widgets not owned by the runtime.
     
@@ -325,3 +325,74 @@ The life-cycle of a `Fragment` is managed by its host: first, the `NavigationHos
 - `onDisplay`**:** The fragment is currently visible, the UI hierarchy has been setup and everything is ready for user interaction. Use this for last-moment UX checks and updates.
 - `onLeave`**:** The user has navigated to a different fragment, this is also called before `onDestroy`. You can use this method to stop any functionality that is purely visual or meaningless to execute without the user’s attention.
 - `onDestroy`**:** This fragment has been completely removed from the navigation stack and it will be destroyed to free memory and other resources. At this point, all memory allocated using the `AutoFreeScope` provided by the fragment is cleared.
+
+## Settings and Preferences
+
+Keeping track of user preferences and important data between sessions of your application can be largely automated without too much effort by integrating the Preferences API into your project. The idea is to define a series of `Setting` instances to be loaded from and saved to a database, which can be shared with the rest of your app-related data storage.
+
+### Using the settings builder
+
+`Setting` is an abstract class designed to adapt to your needs, so you can add your own validation and transformation logic to your project-specific settings, or you can use built-in utilities to create them in an idiomatic way:
+
+```kotlin
+val account by settings.register<String>("user_name")
+	.default("New Account")
+
+val password by settings.register<String>()
+	.onValidate { ensureStrongPassword(it) }
+	.onLoad { hashToPassword(it); log("Loading password...") }
+	.onSave { passwordToHash(it); log("Saving password...") }
+	.default { userNotices.credentials.prompt() }
+```
+
+The builder style allows to fine-tune each one of your settings to avoid the cumbersome manual implementation.
+
+### Defining custom `Setting` sub-classes
+
+**TBD**
+
+### Persistence and storage methods
+
+The `SettingsStorage` interface provides a base for the implementation of settings persistence through any desirable serialization method. Currently, only the `SQLiteStorage` and `JsonStorage` implementations are available.
+
+#### Using SQLite
+
+You can store your app settings in an automatically defined and managed table inside an existing database or a dedicated one. If you are already using an SQLite database with the `kotlin-sqlite` package, you will probably want to integrate both features to avoid the extra clutter.
+
+**TBD: Using `SQLiteStorage`**
+
+#### Using the Json format
+
+To store your app settings using Json, simply import the corresponding package:
+
+```kotlin
+implementation("com.github.darvld:solid-settings-json:<version>")
+```
+
+And initialize a `JsonStorage` instance in your application class, passing in the path to the settings file. Since file I/O operations can potentially block the main thread, it is recommended to assign the `ioScheduler` to your `Backend` implementation, though it is not required (the default value is null, which simply blocks the thread until the operation is complete).
+
+```kotlin
+class MyApp : Application() {
+    val settings = JsonStorage("/data/settings.json", ioScheduler=MyBackend)
+    
+    private val username by settings.register<String>("account_name")
+    
+    private fun saveUser() {
+        settings.save(username)
+    }
+    
+    private fun applyChanges() {
+        settings.saveAll()
+    }
+}
+```
+
+`SettingsStorage.register` is an extension that provides a `Setting` builder and automatically registers it with the storage manager, so it is automatically saved and loaded when calling `SettingsStorage.loadAll()` or `SettingsStorage.saveAll()`. You can also use the `SettingsStorage` instance as a provider of registered settings, to avoid having to expose the individual properties to your fragments:
+
+```kotlin
+class SettingsFragment : Fragment() {
+    private val username: Setting<String> by App.settings
+    private val password: Setting<String> by App.settings
+}
+```
+

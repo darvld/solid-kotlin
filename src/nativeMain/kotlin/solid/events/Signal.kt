@@ -2,6 +2,8 @@
 
 package solid.events
 
+import solid.Bundle
+
 /**Represents an event to be invoked at some later point (or not at all).
  *
  * You can [connect] to a signal in order to receive emission notifications. There are a few ways to do this:
@@ -13,7 +15,9 @@ package solid.events
  *
  * Signals have an [owner], which is passed on to every connected [SignalHandler] to provide a context
  * at the time of the emission.*/
-public class Signal<T>(private val owner: T) {
+public abstract class Signal<T> {
+    protected abstract fun translateContext(context: Bundle?): T
+
     /**A set of [SignalHandler] instances to be notified on [emit].*/
     internal val handlers: MutableSet<SignalHandler<T>> = mutableSetOf()
 
@@ -21,9 +25,9 @@ public class Signal<T>(private val owner: T) {
      *
      * You should not call this yourself unless you are implementing a custom signal system, or if you need to simulate
      * a widget event manually.*/
-    public fun emit() {
+    public fun emit(context: Bundle? = null) {
         for (handler in handlers) {
-            handler(owner)
+            handler(translateContext(context))
         }
     }
 
@@ -48,4 +52,10 @@ public class Signal<T>(private val owner: T) {
     /**Connects a new [SignalHandler], constructed with the given [handler] function. This is the same as calling
      * [connect] with [handler] as argument.*/
     public inline operator fun invoke(crossinline handler: (context: T) -> Unit): SignalHandler<T> = connect(handler)
+
+    public companion object {
+        public inline fun <T> create(crossinline contextProvider: (Bundle?) -> T): Signal<T> = object : Signal<T>(){
+            override fun translateContext(context: Bundle?): T = contextProvider(context)
+        }
+    }
 }
