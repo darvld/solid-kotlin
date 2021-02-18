@@ -1,12 +1,14 @@
 import solid.Bundle
+import solid.events.Scheduler
 import solid.events.Signal
 import kotlin.random.Random
 import kotlin.test.Test
 
 @Test
 public fun main() {
+
     val onRandom = Signal.create {
-        it?.get<Int>("attempt") to Random.nextInt()
+        it!!.get<Int>("attempt") to Random.nextInt()
     }
 
     onRandom {

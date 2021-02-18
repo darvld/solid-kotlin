@@ -39,7 +39,7 @@ private class SettingsFragment : Fragment() {
     }
 }
 
-@Test
+
 fun main() {
     println("Started")
 

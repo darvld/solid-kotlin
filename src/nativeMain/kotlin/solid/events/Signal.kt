@@ -13,8 +13,7 @@ import solid.Bundle
  *
  * You can also use [SignalHandler.disconnect] at any time to remove the handler.
  *
- * Signals have an [owner], which is passed on to every connected [SignalHandler] to provide a context
- * at the time of the emission.*/
+ * Signals provide a context to its handlers on emission, obtained through the [translateContext] method implementation.*/
 public abstract class Signal<T> {
     protected abstract fun translateContext(context: Bundle?): T
 
@@ -23,8 +22,7 @@ public abstract class Signal<T> {
 
     /**Trigger a signal emission, this will invoke every registered [SignalHandler].
      *
-     * You should not call this yourself unless you are implementing a custom signal system, or if you need to simulate
-     * a widget event manually.*/
+     * You should not call this yourself unless you are implementing a custom signal system.*/
     public fun emit(context: Bundle? = null) {
         for (handler in handlers) {
             handler(translateContext(context))
