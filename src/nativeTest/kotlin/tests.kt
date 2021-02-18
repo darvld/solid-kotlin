@@ -1,5 +1,4 @@
-import kotlin.test.Test
-import solid.navigation.Bundle
+import solid.Bundle
 import solid.navigation.Destination
 import solid.navigation.Fragment
 import solid.navigation.NavigationHost
@@ -12,7 +11,7 @@ private const val SIGNAL_EDIT = 4
 private inline fun Container.sample(setup: SampleWidget.()->Unit): SampleWidget = SampleWidget().apply(setup)
 
 private class SampleWidget : Widget() {
-    val onEdit by registerSignal(SIGNAL_EDIT)
+    val onEdit by registerSignal(SIGNAL_EDIT){ this }
 }
 
 private class SettingsFragment : Fragment() {

@@ -6,7 +6,6 @@ import kotlin.test.Test
 
 @Test
 public fun main() {
-
     val onRandom = Signal.create {
         it!!.get<Int>("attempt") to Random.nextInt()
     }

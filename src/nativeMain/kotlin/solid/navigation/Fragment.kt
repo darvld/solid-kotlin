@@ -5,6 +5,7 @@ package solid.navigation
 import kotlinx.cinterop.Arena
 import kotlinx.cinterop.AutofreeScope
 import kotlinx.cinterop.NativePointed
+import solid.Bundle
 import solid.widgets.Container
 import solid.widgets.Widget
 

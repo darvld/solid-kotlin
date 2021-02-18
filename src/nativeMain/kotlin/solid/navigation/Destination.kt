@@ -1,5 +1,7 @@
 package solid.navigation
 
+import solid.Bundle
+
 
 public fun interface Destination {
     public fun navigate(host: NavigationHost, arguments: Bundle?): Fragment

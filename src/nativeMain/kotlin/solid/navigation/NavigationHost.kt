@@ -2,6 +2,7 @@
 
 package solid.navigation
 
+import solid.Bundle
 import solid.widgets.Container
 
 public class NavigationHost(root: Destination) {
