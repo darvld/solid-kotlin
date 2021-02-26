@@ -5,13 +5,11 @@ package solid.navigation
 import solid.Bundle
 import solid.widgets.Container
 
-public class NavigationHost(root: Destination) {
+public abstract class NavigationHost(root: Destination) {
     public val stack: MutableList<Fragment> = mutableListOf()
     private var currentLocation: Int = 0
 
-    private fun provideFragmentRoot(): Container {
-        TODO()
-    }
+    protected abstract fun provideFragmentRoot(): Container
 
     public val activeFragment: Fragment
         get() = stack[currentLocation]

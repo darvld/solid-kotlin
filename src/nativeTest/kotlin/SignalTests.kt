@@ -1,20 +1,27 @@
 import solid.Bundle
-import solid.events.Scheduler
-import solid.events.Signal
+import solid.events.Event
+import solid.events.connectDisposable
+import solid.widgets.Widget
+import kotlin.native.internal.test.TestSuite
 import kotlin.random.Random
+import kotlin.test.Ignore
 import kotlin.test.Test
+
+private const val SIGNAL_CLICK = 1000
+
+private class SomeWidget : Widget() {
+    public val onClick by registerSignal(SIGNAL_CLICK)
+}
 
 @Test
 public fun main() {
-    val onRandom = Signal.create {
-        it!!.get<Int>("attempt") to Random.nextInt()
+    val widget = SomeWidget()
+
+    val handler = widget.onClick {
+        println("Clicked")
     }
 
-    onRandom {
-        println("[Attempt #${it.first}] Here's a random value: ${it.second}")
-    }
-
-    repeat(Random.nextInt(1, 5)) {
-        onRandom.emit(Bundle.create { set("attempt", it) })
+    val disposable = widget.onClick.connectDisposable {
+        println("One shot")
     }
 }

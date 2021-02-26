@@ -1,5 +1,5 @@
 
-rootProject.name = "solid-kotlin"
+rootProject.name = "solid-core"
 
 pluginManagement{
     repositories{

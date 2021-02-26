@@ -2,20 +2,23 @@
 
 package solid.widgets
 
+import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer
+import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.staticCFunction
-import solid.Bundle
 import solid.WidgetWrapException
 import solid.events.Signal
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
+private typealias WidgetEventHandler = CPointer<CFunction<(Int, COpaquePointer?) -> Boolean>>
+
 @SolidDsl
 public abstract class Widget {
-    private val signals: MutableMap<Int, Signal<*>> = mutableMapOf()
+    private val signals: MutableMap<Int, Signal> = mutableMapOf()
 
-    internal inline fun handleEvent(eventId: Int, context: Bundle?) {
-        signals[eventId]?.emit(context)
+    internal inline fun handleEvent(eventId: Int): Boolean {
+        return signals[eventId]?.emit() ?: false
     }
 
     /**Registers a new signal for the given event [id]. When incoming events are handled, the signal assigned to the
@@ -26,12 +29,12 @@ public abstract class Widget {
      *
      * Please note that events and event ids are defined at the low level Solid C++ backend. To create your own custom
      * events you will need to modify those sources and then register the appropriate signal.*/
-    protected fun <T> registerSignal(id: Int, translateContext: (Bundle?) -> T): ReadOnlyProperty<Widget, Signal<T>> =
-        object : ReadOnlyProperty<Widget, Signal<T>> {
-            private lateinit var value: Signal<T>
+    protected fun registerSignal(id: Int): ReadOnlyProperty<Widget, Signal> =
+        object : ReadOnlyProperty<Widget, Signal> {
+            private var value: Signal? = null
 
-            override operator fun getValue(thisRef: Widget, property: KProperty<*>): Signal<T> {
-                return if (::value.isInitialized) value else Signal.create(translateContext).also {
+            override operator fun getValue(thisRef: Widget, property: KProperty<*>): Signal {
+                return value ?: Signal().also {
                     signals[id] = it
                     value = it
                 }
@@ -39,8 +42,8 @@ public abstract class Widget {
         }
 
     public companion object {
-        internal val WidgetEventHandler = staticCFunction { event: Int, widget: COpaquePointer? ->
-            tryWrap(widget)?.handleEvent(event, null) != null
+        internal val WidgetEventHandler: WidgetEventHandler = staticCFunction { event: Int, widget: COpaquePointer? ->
+            tryWrap(widget)?.handleEvent(event) ?: false
         }
 
         /**Creates a [Widget] wrapper from a given C pointer.

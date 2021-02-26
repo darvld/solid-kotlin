@@ -1,59 +1,34 @@
-@file:Suppress("MemberVisibilityCanBePrivate")
+@file:Suppress("unused")
 
 package solid.events
 
-import solid.Bundle
+public value class Signal(private val handlers: MutableSet<SignalHandler> = mutableSetOf()) {
+    public fun emit(): Boolean {
+        if(handlers.isEmpty()) return false
 
-/**Represents an event to be invoked at some later point (or not at all).
- *
- * You can [connect] to a signal in order to receive emission notifications. There are a few ways to do this:
- *  - By connecting an explicitly created [SignalHandler]
- *  - By using the lambda overload, which implicitly creates a new handler.
- *  - By using the [invoke] operator, which delegates to the previous method.
- *
- * You can also use [SignalHandler.disconnect] at any time to remove the handler.
- *
- * Signals provide a context to its handlers on emission, obtained through the [translateContext] method implementation.*/
-public abstract class Signal<T> {
-    protected abstract fun translateContext(context: Bundle?): T
+        for (handler in handlers)
+            handler.invoke()
 
-    /**A set of [SignalHandler] instances to be notified on [emit].*/
-    internal val handlers: MutableSet<SignalHandler<T>> = mutableSetOf()
-
-    /**Trigger a signal emission, this will invoke every registered [SignalHandler].
-     *
-     * You should not call this yourself unless you are implementing a custom signal system.*/
-    public fun emit(context: Bundle? = null) {
-        for (handler in handlers) {
-            handler(translateContext(context))
-        }
+        return true
     }
 
-    /**Connects [handler] to this signal. This is the same as calling `handler.connect(this)`*/
-    public inline fun connect(handler: SignalHandler<T>): Boolean = handler.connect(this)
+    public fun connect(handler: SignalHandler): Boolean {
+        if (!handlers.add(handler))
+            return false
 
-    /**Creates a new [SignalHandler] using the given [handler] function. The resulting handler is then connected to
-     * this signal.*/
-    public inline fun connect(crossinline handler: (T) -> Unit): SignalHandler<T> {
-        return object : SignalHandler<T>(this) {
-            override fun invoke(context: T) = handler(context)
-        }.also { connect(it) }
+        handler.connectedTo = this
+        return true
     }
 
-    /**Disconnect all registered signal handlers.*/
-    public fun clearHandlers() {
-        for (handler in handlers) {
-            handler.disconnect()
-        }
-    }
+    public inline fun connect(noinline handler: () -> Unit): SignalHandler = SignalHandler(handler).also { connect(it) }
+    public inline operator fun invoke(noinline handler: () -> Unit): SignalHandler = connect(handler)
 
-    /**Connects a new [SignalHandler], constructed with the given [handler] function. This is the same as calling
-     * [connect] with [handler] as argument.*/
-    public inline operator fun invoke(crossinline handler: (context: T) -> Unit): SignalHandler<T> = connect(handler)
+    public fun disconnect(handler: SignalHandler): Boolean {
+        if (!handlers.remove(handler))
+            return false
 
-    public companion object {
-        public inline fun <T> create(crossinline contextProvider: (Bundle?) -> T): Signal<T> = object : Signal<T>(){
-            override fun translateContext(context: Bundle?): T = contextProvider(context)
-        }
+        handler.connectedTo = null
+        return true
     }
 }
+
